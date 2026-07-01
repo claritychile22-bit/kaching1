@@ -1,5 +1,6 @@
 using Kaching.Core.Models;
 using Kaching.Core.Services;
+using Xunit;
 
 namespace Kaching.Core.Tests;
 
