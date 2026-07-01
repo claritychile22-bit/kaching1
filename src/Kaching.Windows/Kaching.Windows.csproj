@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>Kaching.Windows</AssemblyName>
+    <RootNamespace>Kaching.Windows</RootNamespace>
+    <ApplicationIcon></ApplicationIcon>
+    <AssemblyTitle>Kaching Windows</AssemblyTitle>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Kaching.Core\Kaching.Core.csproj" />
+  </ItemGroup>
+</Project>
