@@ -3,3 +3,18 @@ config.ini
 __pycache__/
 dist/
 build/
+
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.rsuser
+TestResults/
+coverage/
+artifacts/
+*.nupkg
+*.snupkg
+src/Kaching.Windows/AppData/
