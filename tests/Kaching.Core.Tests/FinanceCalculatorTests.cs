@@ -4,51 +4,35 @@ using Xunit;
 
 namespace Kaching.Core.Tests;
 
-public sealed class FinanceCalculatorTests
+public sealed class SalesAnalyticsTests
 {
     [Fact]
-    public void BuildSnapshot_ComputesMonthlyTotalsAndSavingsRate()
+    public void BuildSnapshot_ComputesTodayAndLifetimeSales()
     {
-        var today = new DateOnly(2026, 7, 15);
-        var account = Account.Create("Main", "Bank", 1000);
-        var workspace = new FinanceWorkspace
+        var today = new DateOnly(2026, 7, 1);
+        var orders = new[]
         {
-            Accounts = [account],
-            Budgets = [BudgetCategory.Create("Software", 500, "#2563EB")],
-            Transactions =
-            [
-                FinancialTransaction.Create(account.Id, today, "Sale", "Income", 1000, TransactionType.Income),
-                FinancialTransaction.Create(account.Id, today, "Tool", "Software", 250, TransactionType.Expense),
-                FinancialTransaction.Create(account.Id, today.AddMonths(-1), "Old", "Software", 800, TransactionType.Expense)
-            ]
+            new ShopifyOrder("gid://shopify/Order/1", "#1001", new DateTimeOffset(2026, 7, 1, 10, 0, 0, TimeSpan.Zero), "Ana", 25000, "CLP", "PAID", "UNFULFILLED"),
+            new ShopifyOrder("gid://shopify/Order/2", "#1002", new DateTimeOffset(2026, 7, 1, 11, 0, 0, TimeSpan.Zero), "Luis", 45000, "CLP", "PAID", "UNFULFILLED"),
+            new ShopifyOrder("gid://shopify/Order/3", "#0999", new DateTimeOffset(2026, 6, 30, 18, 0, 0, TimeSpan.Zero), "Marta", 15000, "CLP", "PAID", "FULFILLED")
         };
 
-        var snapshot = new FinanceCalculator().BuildSnapshot(workspace, today);
+        var snapshot = new SalesAnalytics().BuildSnapshot(orders, today);
 
-        Assert.Equal(1950, snapshot.NetWorth);
-        Assert.Equal(1000, snapshot.MonthlyIncome);
-        Assert.Equal(250, snapshot.MonthlyExpenses);
-        Assert.Equal(0.75m, snapshot.SavingsRate);
-        Assert.Equal(250, snapshot.CategorySpending.Single().Spent);
+        Assert.Equal(2, snapshot.OrdersToday);
+        Assert.Equal(70000, snapshot.SalesToday);
+        Assert.Equal(85000, snapshot.TotalSold);
+        Assert.Equal("CLP", snapshot.CurrencyCode);
+        Assert.Equal("#1002", snapshot.LatestOrder?.Name);
     }
 
     [Fact]
-    public void BuildSnapshot_ReturnsRecentTransactionsInDescendingDateOrder()
+    public void ShopifySettings_Normalize_AddsMyShopifyDomainAndMinimumInterval()
     {
-        var today = new DateOnly(2026, 7, 15);
-        var account = Account.Create("Main", "Bank", 0);
-        var workspace = new FinanceWorkspace
-        {
-            Accounts = [account],
-            Transactions =
-            [
-                FinancialTransaction.Create(account.Id, today.AddDays(-2), "Older", "Ops", 10, TransactionType.Expense),
-                FinancialTransaction.Create(account.Id, today, "Newest", "Ops", 10, TransactionType.Expense)
-            ]
-        };
+        var settings = new ShopifySettings("MiTienda", " token ", 3, true).Normalize();
 
-        var snapshot = new FinanceCalculator().BuildSnapshot(workspace, today);
-
-        Assert.Equal("Newest", snapshot.RecentTransactions.First().Description);
+        Assert.Equal("mitienda.myshopify.com", settings.ShopDomain);
+        Assert.Equal("token", settings.AccessToken);
+        Assert.Equal(ShopifySettings.MinimumPollIntervalSeconds, settings.PollIntervalSeconds);
     }
 }
