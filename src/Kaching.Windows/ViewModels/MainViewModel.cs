@@ -1,39 +1,97 @@
 using System.Collections.ObjectModel;
 using Kaching.Core.Models;
 using Kaching.Core.Services;
+using Kaching.Windows.Services;
 
 namespace Kaching.Windows.ViewModels;
 
 public sealed class MainViewModel : ObservableObject
 {
-    private readonly IWorkspaceStore workspaceStore;
-    private readonly FinanceCalculator financeCalculator;
-    private FinanceWorkspace workspace = new();
-    private DashboardSnapshot? snapshot;
-    private string statusMessage = "Preparando Kaching Windows";
+    private readonly IAppStateStore stateStore;
+    private readonly OrderMonitorService monitorService;
+    private readonly SalesAnalytics salesAnalytics;
+    private readonly KachingSoundService soundService;
+    private readonly NotificationService notificationService;
+    private readonly AutoStartService autoStartService;
+    private ShopifyMonitorState state = new();
+    private CancellationTokenSource? monitorCancellation;
+    private SalesDashboardSnapshot? snapshot;
+    private string shopDomain = string.Empty;
+    private string accessToken = string.Empty;
+    private int pollIntervalSeconds = 30;
+    private bool autoStartWithWindows;
+    private bool isMonitoring;
+    private string statusMessage = "Configura tu tienda Shopify para comenzar";
 
-    public MainViewModel(IWorkspaceStore workspaceStore, FinanceCalculator financeCalculator)
+    public MainViewModel(
+        IAppStateStore stateStore,
+        OrderMonitorService monitorService,
+        SalesAnalytics salesAnalytics,
+        KachingSoundService soundService,
+        NotificationService notificationService,
+        AutoStartService autoStartService)
     {
-        this.workspaceStore = workspaceStore;
-        this.financeCalculator = financeCalculator;
+        this.stateStore = stateStore;
+        this.monitorService = monitorService;
+        this.salesAnalytics = salesAnalytics;
+        this.soundService = soundService;
+        this.notificationService = notificationService;
+        this.autoStartService = autoStartService;
 
-        RefreshCommand = new RelayCommand(async () => await RefreshAsync());
-        ResetDemoCommand = new RelayCommand(async () => await ResetDemoAsync());
-        AddSaleCommand = new RelayCommand(async () => await AddSaleAsync(), () => Accounts.Count > 0);
+        SaveSettingsCommand = new RelayCommand(async () => await SaveSettingsAsync());
+        StartMonitoringCommand = new RelayCommand(StartMonitoring, () => !IsMonitoring);
+        StopMonitoringCommand = new RelayCommand(StopMonitoring, () => IsMonitoring);
+        CheckNowCommand = new RelayCommand(async () => await CheckNowAsync());
     }
 
-    public ObservableCollection<Account> Accounts { get; } = [];
-    public ObservableCollection<FinancialTransaction> RecentTransactions { get; } = [];
-    public ObservableCollection<CategorySpend> CategorySpending { get; } = [];
+    public ObservableCollection<ShopifyOrder> SalesHistory { get; } = [];
 
-    public RelayCommand RefreshCommand { get; }
-    public RelayCommand ResetDemoCommand { get; }
-    public RelayCommand AddSaleCommand { get; }
+    public RelayCommand SaveSettingsCommand { get; }
+    public RelayCommand StartMonitoringCommand { get; }
+    public RelayCommand StopMonitoringCommand { get; }
+    public RelayCommand CheckNowCommand { get; }
 
-    public DashboardSnapshot? Snapshot
+    public SalesDashboardSnapshot? Snapshot
     {
         get => snapshot;
         private set => SetProperty(ref snapshot, value);
+    }
+
+    public string ShopDomain
+    {
+        get => shopDomain;
+        set => SetProperty(ref shopDomain, value);
+    }
+
+    public string AccessToken
+    {
+        get => accessToken;
+        set => SetProperty(ref accessToken, value);
+    }
+
+    public int PollIntervalSeconds
+    {
+        get => pollIntervalSeconds;
+        set => SetProperty(ref pollIntervalSeconds, Math.Max(ShopifySettings.MinimumPollIntervalSeconds, value));
+    }
+
+    public bool AutoStartWithWindows
+    {
+        get => autoStartWithWindows;
+        set => SetProperty(ref autoStartWithWindows, value);
+    }
+
+    public bool IsMonitoring
+    {
+        get => isMonitoring;
+        private set
+        {
+            if (SetProperty(ref isMonitoring, value))
+            {
+                StartMonitoringCommand.RaiseCanExecuteChanged();
+                StopMonitoringCommand.RaiseCanExecuteChanged();
+            }
+        }
     }
 
     public string StatusMessage
@@ -44,67 +102,107 @@ public sealed class MainViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        workspace = await workspaceStore.LoadAsync();
-        if (workspace.IsEmpty)
-        {
-            workspace = SampleWorkspaceFactory.Create(DateOnly.FromDateTime(DateTime.Today));
-            await workspaceStore.SaveAsync(workspace);
-        }
+        state = await stateStore.LoadAsync();
+        state.Settings = state.Settings.Normalize();
 
-        ApplySnapshot("Listo para decidir con mejor informacion");
+        ShopDomain = state.Settings.ShopDomain;
+        AccessToken = state.Settings.AccessToken;
+        PollIntervalSeconds = state.Settings.PollIntervalSeconds;
+        AutoStartWithWindows = state.Settings.AutoStartWithWindows || autoStartService.IsEnabled();
+        ApplySnapshot();
     }
 
-    private async Task RefreshAsync()
+    private async Task SaveSettingsAsync()
     {
-        workspace = await workspaceStore.LoadAsync();
-        ApplySnapshot("Datos actualizados");
+        state.Settings = new ShopifySettings(ShopDomain, AccessToken, PollIntervalSeconds, AutoStartWithWindows).Normalize();
+        ShopDomain = state.Settings.ShopDomain;
+        PollIntervalSeconds = state.Settings.PollIntervalSeconds;
+        autoStartService.SetEnabled(state.Settings.AutoStartWithWindows);
+        await stateStore.SaveAsync(state);
+        StatusMessage = "Configuracion guardada";
     }
 
-    private async Task ResetDemoAsync()
+    private void StartMonitoring()
     {
-        workspace = SampleWorkspaceFactory.Create(DateOnly.FromDateTime(DateTime.Today));
-        await workspaceStore.SaveAsync(workspace);
-        ApplySnapshot("Espacio de trabajo reiniciado");
+        if (IsMonitoring)
+        {
+            return;
+        }
+
+        if (!state.Settings.HasCredentials)
+        {
+            StatusMessage = "Guarda la tienda y el token antes de iniciar el monitor";
+            return;
+        }
+
+        monitorCancellation = new CancellationTokenSource();
+        IsMonitoring = true;
+        StatusMessage = "Monitor Shopify activo";
+        _ = MonitorLoopAsync(monitorCancellation.Token);
     }
 
-    private async Task AddSaleAsync()
+    private void StopMonitoring()
     {
-        var account = workspace.Accounts.First();
-        workspace.Transactions.Insert(0, FinancialTransaction.Create(
-            account.Id,
-            DateOnly.FromDateTime(DateTime.Today),
-            "Venta rapida",
-            "Ingresos",
-            250000,
-            TransactionType.Income));
-
-        await workspaceStore.SaveAsync(workspace);
-        ApplySnapshot("Venta rapida agregada");
+        monitorCancellation?.Cancel();
+        monitorCancellation?.Dispose();
+        monitorCancellation = null;
+        IsMonitoring = false;
+        StatusMessage = "Monitor detenido";
     }
 
-    private void ApplySnapshot(string message)
+    private async Task CheckNowAsync()
     {
-        Snapshot = financeCalculator.BuildSnapshot(workspace, DateOnly.FromDateTime(DateTime.Today));
+        await SaveSettingsAsync();
+        await CheckForSalesAsync(CancellationToken.None);
+    }
 
-        Accounts.Clear();
-        foreach (var account in workspace.Accounts)
+    private async Task MonitorLoopAsync(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
         {
-            Accounts.Add(account);
+            await CheckForSalesAsync(cancellationToken);
+            await Task.Delay(TimeSpan.FromSeconds(state.Settings.PollIntervalSeconds), cancellationToken);
         }
+    }
 
-        RecentTransactions.Clear();
-        foreach (var transaction in Snapshot.RecentTransactions)
+    private async Task CheckForSalesAsync(CancellationToken cancellationToken)
+    {
+        try
         {
-            RecentTransactions.Add(transaction);
-        }
+            var newOrders = await monitorService.CheckForNewOrdersAsync(state, cancellationToken);
+            await stateStore.SaveAsync(state, cancellationToken);
+            ApplySnapshot();
 
-        CategorySpending.Clear();
-        foreach (var category in Snapshot.CategorySpending)
+            if (newOrders.Count > 0)
+            {
+                soundService.Play();
+                var total = newOrders.Sum(order => order.TotalAmount);
+                notificationService.NotifySale("Kaching! Nueva venta en Shopify", $"{newOrders.Count} pedido(s) por {total:N0} {newOrders.Last().CurrencyCode}");
+                StatusMessage = $"{newOrders.Count} venta(s) nuevas detectadas";
+            }
+            else
+            {
+                StatusMessage = $"Sin ventas nuevas. Ultima revision {DateTime.Now:t}";
+            }
+        }
+        catch (OperationCanceledException)
         {
-            CategorySpending.Add(category);
         }
+        catch (Exception ex)
+        {
+            state.LastError = ex.Message;
+            StatusMessage = $"Error Shopify: {ex.Message}";
+            await stateStore.SaveAsync(state, CancellationToken.None);
+        }
+    }
 
-        StatusMessage = message;
-        AddSaleCommand.RaiseCanExecuteChanged();
+    private void ApplySnapshot()
+    {
+        Snapshot = salesAnalytics.BuildSnapshot(state.SalesHistory, DateOnly.FromDateTime(DateTime.Today));
+        SalesHistory.Clear();
+        foreach (var order in Snapshot.RecentSales)
+        {
+            SalesHistory.Add(order);
+        }
     }
 }
