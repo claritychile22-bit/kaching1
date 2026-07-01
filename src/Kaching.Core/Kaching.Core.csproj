@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>Kaching.Core</AssemblyName>
+    <RootNamespace>Kaching.Core</RootNamespace>
+  </PropertyGroup>
+</Project>
