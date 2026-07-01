@@ -3,11 +3,16 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>Kaching.Windows</AssemblyName>
     <RootNamespace>Kaching.Windows</RootNamespace>
     <ApplicationIcon></ApplicationIcon>
     <AssemblyTitle>Kaching Windows</AssemblyTitle>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\kaching.wav" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Kaching.Core\Kaching.Core.csproj" />

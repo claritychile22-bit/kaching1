@@ -3,26 +3,26 @@ using Kaching.Core.Models;
 
 namespace Kaching.Core.Services;
 
-public sealed class JsonWorkspaceStore(string filePath) : IWorkspaceStore
+public sealed class JsonAppStateStore(string filePath) : IAppStateStore
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
 
-    public async Task<FinanceWorkspace> LoadAsync(CancellationToken cancellationToken = default)
+    public async Task<ShopifyMonitorState> LoadAsync(CancellationToken cancellationToken = default)
     {
         if (!File.Exists(filePath))
         {
-            return new FinanceWorkspace();
+            return new ShopifyMonitorState();
         }
 
         await using var stream = File.OpenRead(filePath);
-        var workspace = await JsonSerializer.DeserializeAsync<FinanceWorkspace>(stream, SerializerOptions, cancellationToken);
-        return workspace ?? new FinanceWorkspace();
+        return await JsonSerializer.DeserializeAsync<ShopifyMonitorState>(stream, SerializerOptions, cancellationToken)
+            ?? new ShopifyMonitorState();
     }
 
-    public async Task SaveAsync(FinanceWorkspace workspace, CancellationToken cancellationToken = default)
+    public async Task SaveAsync(ShopifyMonitorState state, CancellationToken cancellationToken = default)
     {
         var directory = Path.GetDirectoryName(filePath);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -31,6 +31,6 @@ public sealed class JsonWorkspaceStore(string filePath) : IWorkspaceStore
         }
 
         await using var stream = File.Create(filePath);
-        await JsonSerializer.SerializeAsync(stream, workspace, SerializerOptions, cancellationToken);
+        await JsonSerializer.SerializeAsync(stream, state, SerializerOptions, cancellationToken);
     }
 }
