@@ -2,9 +2,9 @@ name: .NET
 
 on:
   pull_request:
-    branches: [ main ]
-  push:
     branches: [ main, development ]
+  push:
+    branches: [ main, development, shopify-monitor ]
 
 jobs:
   build-test:
