@@ -1,0 +1,33 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kaching.Core", "src\Kaching.Core\Kaching.Core.csproj", "{7A86B25D-7D04-49E2-B487-8A501694F9D4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kaching.Windows", "src\Kaching.Windows\Kaching.Windows.csproj", "{92AB9C7E-A508-4C82-9EC9-6C2C3E70B74E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Kaching.Core.Tests", "tests\Kaching.Core.Tests\Kaching.Core.Tests.csproj", "{B0E21899-9555-4E1D-B173-C9F8B77C7D6E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{7A86B25D-7D04-49E2-B487-8A501694F9D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7A86B25D-7D04-49E2-B487-8A501694F9D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7A86B25D-7D04-49E2-B487-8A501694F9D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7A86B25D-7D04-49E2-B487-8A501694F9D4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{92AB9C7E-A508-4C82-9EC9-6C2C3E70B74E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{92AB9C7E-A508-4C82-9EC9-6C2C3E70B74E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{92AB9C7E-A508-4C82-9EC9-6C2C3E70B74E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{92AB9C7E-A508-4C82-9EC9-6C2C3E70B74E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B0E21899-9555-4E1D-B173-C9F8B77C7D6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0E21899-9555-4E1D-B173-C9F8B77C7D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0E21899-9555-4E1D-B173-C9F8B77C7D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0E21899-9555-4E1D-B173-C9F8B77C7D6E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
