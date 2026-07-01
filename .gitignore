@@ -4,6 +4,12 @@ __pycache__/
 dist/
 build/
 
+# Local Kaching settings
+appsettings.json
+appsettings.*.json
+!appsettings.example.json
+src/Kaching.Windows/AppData/
+
 # .NET / Visual Studio
 bin/
 obj/
@@ -17,4 +23,3 @@ coverage/
 artifacts/
 *.nupkg
 *.snupkg
-src/Kaching.Windows/AppData/
